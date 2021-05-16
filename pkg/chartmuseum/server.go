@@ -81,6 +81,9 @@ type (
 		Debug bool
 		// Deprecated: LogJSON is no longer effective. ServerOptions now requires the Logger field to be set and configured with LoggerOptions accordingly.
 		LogJSON bool
+		// KeepChartAlwaysUpToDate represents if the museum always return the up-to-date chart
+		// which means that the GetChart will increase its latency , be careful to enable this .
+		KeepChartAlwaysUpToDate bool
 	}
 
 	// Server is a generic interface for web servers
@@ -147,6 +150,7 @@ func NewServer(options ServerOptions) (Server, error) {
 		// Deprecated options
 		// EnforceSemver2 - see https://github.com/helm/chartmuseum/issues/485 for more info
 		EnforceSemver2: options.EnforceSemver2,
+		KeepChartAlwaysUpToDate: options.KeepChartAlwaysUpToDate,
 	})
 
 	return server, err

@@ -68,6 +68,8 @@ type MultiTenantServerTestSuite struct {
 	Semver2Server           *MultiTenantServer
 	PerChartLimitServer     *MultiTenantServer
 	ArtifactHubRepoIDServer *MultiTenantServer
+	UpdateToDateServer      *MultiTenantServer
+	CacheInternalServer     *MultiTenantServer
 	TempDirectory           string
 	TestTarballFilename     string
 	TestProvfileFilename    string
@@ -76,6 +78,7 @@ type MultiTenantServerTestSuite struct {
 	LastPrinted             string
 	LastExitCode            int
 	ArtifactHubIds          map[string]string
+	KeepChartAlwaysUpToDate bool
 }
 
 func (suite *MultiTenantServerTestSuite) doRequest(stype string, method string, urlStr string, body io.Reader, contentType string, output ...*bytes.Buffer) gin.ResponseWriter {
@@ -118,6 +121,10 @@ func (suite *MultiTenantServerTestSuite) doRequest(stype string, method string, 
 		suite.PerChartLimitServer.Router.HandleContext(c)
 	case "artifacthub":
 		suite.ArtifactHubRepoIDServer.Router.HandleContext(c)
+	case "chart-up-to-date":
+		suite.UpdateToDateServer.Router.HandleContext(c)
+	case "cache-internal":
+		suite.CacheInternalServer.Router.HandleContext(c)
 	}
 
 	return c.Writer
@@ -506,6 +513,44 @@ func (suite *MultiTenantServerTestSuite) SetupSuite() {
 	suite.NotNil(server)
 	suite.Nil(err, "no error creating new artifact hub repo id server")
 	suite.ArtifactHubRepoIDServer = server
+
+	router = cm_router.NewRouter(cm_router.RouterOptions{
+		Logger:        logger,
+		Depth:         0,
+		MaxUploadSize: 1,
+	})
+
+	server, err = NewMultiTenantServer(MultiTenantServerOptions{
+		Logger:                  logger,
+		Router:                  router,
+		StorageBackend:          backend,
+		TimestampTolerance:      time.Duration(0),
+		EnableAPI:               true,
+		AllowOverwrite:          true,
+		ChartPostFormFieldName:  "chart",
+		ProvPostFormFieldName:   "prov",
+		KeepChartAlwaysUpToDate: true,
+	})
+
+	suite.NotNil(server)
+	suite.Nil(err, "can not create server with keep chart always up to date")
+	suite.UpdateToDateServer = server
+
+	server, err = NewMultiTenantServer(MultiTenantServerOptions{
+		Logger:                 logger,
+		Router:                 router,
+		StorageBackend:         backend,
+		TimestampTolerance:     time.Duration(0),
+		EnableAPI:              true,
+		AllowOverwrite:         true,
+		ChartPostFormFieldName: "chart",
+		ProvPostFormFieldName:  "prov",
+		CacheInterval:          time.Duration(time.Second),
+	})
+
+	suite.NotNil(server)
+	suite.Nil(err, "cannot create cache interval server")
+	suite.CacheInternalServer = server
 }
 
 func (suite *MultiTenantServerTestSuite) TearDownSuite() {
@@ -948,6 +993,16 @@ func (suite *MultiTenantServerTestSuite) TestMetrics() {
 
 	// Ensure that the b repo has no charts
 	suite.True(strings.Contains(metrics, "chartmuseum_chart_versions_served_total{repo=\"b\"} 0"))
+}
+
+func (suite *MultiTenantServerTestSuite) TestAlwaysUpToDateChart() {
+	res := suite.doRequest("chart-up-to-date", "GET", "/api/charts/mychart/0.1.0", nil, "")
+	suite.Equal(200, res.Status(), "200 GET /api/charts/mychart-0.1.0")
+}
+
+func (suite *MultiTenantServerTestSuite) TestCacheInterval() {
+	res := suite.doRequest("cache-internal", "GET", "/api/charts/mychart/0.1.0", nil, "")
+	suite.Equal(200, res.Status(), "200 GET /api/charts/mychart-0.1.0")
 }
 
 func (suite *MultiTenantServerTestSuite) TestArtifactHubRepoID() {

@@ -472,16 +472,17 @@ func (server *MultiTenantServer) newRepositoryIndex(log cm_logger.LoggingFn, rep
 }
 
 func (server *MultiTenantServer) initCacheTimer() {
-	if server.CacheInterval > 0 {
-		// delta update the cache every X duration
-		// (in case the files on the disk are manually manipulated)
-		go func() {
-			t := time.NewTicker(server.CacheInterval)
-			for _ = range t.C {
-				server.rebuildIndex()
-			}
-		}()
+	if server.CacheInterval == 0 {
+		server.CacheInterval = defaultCacheInterval
 	}
+	// delta update the cache every X duration
+	// (in case the files on the disk are manually manipulated)
+	go func() {
+		t := time.NewTicker(server.CacheInterval)
+		for range t.C {
+			server.rebuildIndex()
+		}
+	}()
 }
 
 func (server *MultiTenantServer) emitEvent(c *gin.Context, repo string, operationType operationType, chart *helm_repo.ChartVersion) {
@@ -496,7 +497,6 @@ func (server *MultiTenantServer) emitEvent(c *gin.Context, repo string, operatio
 func (server *MultiTenantServer) startEventListener() {
 	server.Router.Logger.Debug("Starting internal event listener")
 	for {
-
 		e := <-server.EventChan
 		log := server.Logger.ContextLoggingFn(e.Context)
 

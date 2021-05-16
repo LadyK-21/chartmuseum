@@ -19,6 +19,7 @@ package multitenant
 import (
 	"net/http"
 	pathutil "path"
+	"time"
 
 	cm_storage "github.com/chartmuseum/storage"
 	cm_logger "helm.sh/chartmuseum/pkg/chartmuseum/logger"
@@ -27,6 +28,7 @@ import (
 
 const (
 	indexFileContentType = "application/x-yaml"
+	defaultCacheInterval = 5 * time.Minute
 )
 
 func (server *MultiTenantServer) getIndexFile(log cm_logger.LoggingFn, repo string) (*cm_repo.Index, *HTTPError) {
@@ -40,9 +42,12 @@ func (server *MultiTenantServer) getIndexFile(log cm_logger.LoggingFn, repo stri
 	}
 
 	entry.RepoLock.Lock()
+
 	defer entry.RepoLock.Unlock()
-	// if cache is nil, and not on a timer, regenerate it
-	if len(entry.RepoIndex.Entries) == 0 && server.CacheInterval == 0 {
+	// if the keep-chart-always-update-to-date flag is set, we always update the index file
+	// and ignore the chart cache
+	if server.KeepChartAlwaysUpToDate /* the flag is set */ ||
+		(!server.KeepChartAlwaysUpToDate && len(entry.RepoIndex.Entries) == 0) /* initial */ {
 
 		fo := <-server.getChartList(log, repo)
 

@@ -70,8 +70,9 @@ type (
 		ChartLimits            *ObjectsPerChartLimit
 		ArtifactHubRepoID      map[string]string
 		// Deprecated: see https://github.com/helm/chartmuseum/issues/485 for more info
-		EnforceSemver2  bool
-		WebTemplatePath string
+		EnforceSemver2          bool
+		WebTemplatePath         string
+		KeepChartAlwaysUpToDate bool
 	}
 
 	ObjectsPerChartLimit struct {
@@ -103,7 +104,8 @@ type (
 		ArtifactHubRepoID      map[string]string
 		WebTemplatePath        string
 		// Deprecated: see https://github.com/helm/chartmuseum/issues/485 for more info
-		EnforceSemver2 bool
+		EnforceSemver2          bool
+		KeepChartAlwaysUpToDate bool
 	}
 
 	tenantInternals struct {
@@ -138,31 +140,32 @@ func NewMultiTenantServer(options MultiTenantServerOptions) (*MultiTenantServer,
 	}
 
 	server := &MultiTenantServer{
-		Logger:                 options.Logger,
-		Router:                 options.Router,
-		StorageBackend:         options.StorageBackend,
-		TimestampTolerance:     options.TimestampTolerance,
-		ExternalCacheStore:     options.ExternalCacheStore,
-		InternalCacheStore:     memoryCacheStore{},
-		MaxStorageObjects:      options.MaxStorageObjects,
-		IndexLimit:             options.IndexLimit,
-		ChartURL:               chartURL,
-		ChartPostFormFieldName: options.ChartPostFormFieldName,
-		ProvPostFormFieldName:  options.ProvPostFormFieldName,
-		AllowOverwrite:         options.AllowOverwrite,
-		AllowForceOverwrite:    options.AllowForceOverwrite,
-		APIEnabled:             options.EnableAPI,
-		DisableDelete:          options.DisableDelete,
-		UseStatefiles:          options.UseStatefiles,
-		EnforceSemver2:         options.EnforceSemver2,
-		Version:                options.Version,
-		Limiter:                make(chan struct{}, options.IndexLimit),
-		Tenants:                map[string]*tenantInternals{},
-		TenantCacheKeyLock:     &sync.Mutex{},
-		CacheInterval:          options.CacheInterval,
-		ChartLimits:            l,
-		WebTemplatePath:        options.WebTemplatePath,
-		ArtifactHubRepoID:      options.ArtifactHubRepoID,
+		Logger:                  options.Logger,
+		Router:                  options.Router,
+		StorageBackend:          options.StorageBackend,
+		TimestampTolerance:      options.TimestampTolerance,
+		ExternalCacheStore:      options.ExternalCacheStore,
+		InternalCacheStore:      memoryCacheStore{},
+		MaxStorageObjects:       options.MaxStorageObjects,
+		IndexLimit:              options.IndexLimit,
+		ChartURL:                chartURL,
+		ChartPostFormFieldName:  options.ChartPostFormFieldName,
+		ProvPostFormFieldName:   options.ProvPostFormFieldName,
+		AllowOverwrite:          options.AllowOverwrite,
+		AllowForceOverwrite:     options.AllowForceOverwrite,
+		APIEnabled:              options.EnableAPI,
+		DisableDelete:           options.DisableDelete,
+		UseStatefiles:           options.UseStatefiles,
+		EnforceSemver2:          options.EnforceSemver2,
+		Version:                 options.Version,
+		Limiter:                 make(chan struct{}, options.IndexLimit),
+		Tenants:                 map[string]*tenantInternals{},
+		TenantCacheKeyLock:      &sync.Mutex{},
+		CacheInterval:           options.CacheInterval,
+		ChartLimits:             l,
+		WebTemplatePath:         options.WebTemplatePath,
+		ArtifactHubRepoID:       options.ArtifactHubRepoID,
+		KeepChartAlwaysUpToDate: options.KeepChartAlwaysUpToDate,
 	}
 
 	if server.WebTemplatePath != "" {
