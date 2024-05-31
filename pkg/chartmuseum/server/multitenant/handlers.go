@@ -27,6 +27,7 @@ import (
 	"time"
 
 	cm_storage "github.com/chartmuseum/storage"
+
 	cm_logger "helm.sh/chartmuseum/pkg/chartmuseum/logger"
 	cm_repo "helm.sh/chartmuseum/pkg/repo"
 
@@ -127,6 +128,10 @@ func (server *MultiTenantServer) getIndexFileRequestHandler(c *gin.Context) {
 	indexFile.IndexLock.RLock()
 	defer indexFile.IndexLock.RUnlock()
 	c.Data(200, indexFileContentType, indexFile.Raw)
+}
+
+func (server *MultiTenantServer) headIndexFileRequestHandler(c *gin.Context) {
+	c.Status(200)
 }
 
 func (server *MultiTenantServer) getArtifactHubFileRequestHandler(c *gin.Context) {

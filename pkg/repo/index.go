@@ -17,10 +17,11 @@ limitations under the License.
 package repo
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 
 	helm_repo "helm.sh/helm/v3/pkg/repo"
 )
@@ -50,17 +51,18 @@ type (
 		RepoName   string `json:"b"`
 		Raw        []byte `json:"c"`
 		ChartURL   string `json:"d"`
-		IndexLock sync.RWMutex
+		IndexLock  sync.RWMutex
+		OutputJSON bool
 	}
 )
 
 // NewIndex creates a new instance of Index
-func NewIndex(chartURL string, repo string, serverInfo *ServerInfo) *Index {
+func NewIndex(chartURL string, repo string, serverInfo *ServerInfo, outputJSON bool) *Index {
 	indexFile := &IndexFile{
 		IndexFile:  &helm_repo.IndexFile{},
 		ServerInfo: serverInfo,
 	}
-	index := Index{indexFile, repo, []byte{}, chartURL, sync.RWMutex{}}
+	index := Index{indexFile, repo, []byte{}, chartURL, sync.RWMutex{}, outputJSON}
 	index.Entries = map[string]helm_repo.ChartVersions{}
 	index.APIVersion = helm_repo.APIVersionV1
 	index.Regenerate()
@@ -68,10 +70,16 @@ func NewIndex(chartURL string, repo string, serverInfo *ServerInfo) *Index {
 }
 
 // Regenerate sorts entries in index file and sets current time for generated key
-func (index *Index) Regenerate() error {
+func (index *Index) Regenerate() (err error) {
 	index.SortEntries()
 	index.Generated = time.Now().Round(time.Second)
-	raw, err := yaml.Marshal(index.IndexFile)
+
+	var raw []byte
+	if index.OutputJSON {
+		raw, err = json.Marshal(index.IndexFile)
+	} else {
+		raw, err = yaml.Marshal(index.IndexFile)
+	}
 	if err != nil {
 		return err
 	}

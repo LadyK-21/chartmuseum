@@ -46,8 +46,9 @@ import (
 	cm_repo "helm.sh/chartmuseum/pkg/repo"
 
 	cm_storage "github.com/chartmuseum/storage"
-	"github.com/ghodss/yaml"
 	"github.com/gin-gonic/gin"
+	"sigs.k8s.io/yaml"
+
 	helm_repo "helm.sh/helm/v3/pkg/repo"
 )
 
@@ -99,7 +100,9 @@ func (server *MultiTenantServer) primeCache() error {
 // getChartList fetches from the server and accumulates concurrent requests to be fulfilled all at once.
 func (server *MultiTenantServer) getChartList(log cm_logger.LoggingFn, repo string) <-chan fetchedObjects {
 	ch := make(chan fetchedObjects, 1)
+	server.TenantCacheKeyLock.Lock()
 	tenant := server.Tenants[repo]
+	server.TenantCacheKeyLock.Unlock()
 
 	tenant.FetchedObjectsLock.Lock()
 	tenant.FetchedObjectsChans = append(tenant.FetchedObjectsChans, ch)
@@ -149,11 +152,12 @@ func (server *MultiTenantServer) regenerateRepositoryIndexWorker(log cm_logger.L
 		"repo", repo,
 	)
 	index := &cm_repo.Index{
-		IndexFile: entry.RepoIndex.IndexFile,
-		RepoName:  repo,
-		Raw:       entry.RepoIndex.Raw,
-		ChartURL:  entry.RepoIndex.ChartURL,
-		IndexLock: sync.RWMutex{},
+		IndexFile:  entry.RepoIndex.IndexFile,
+		RepoName:   repo,
+		Raw:        entry.RepoIndex.Raw,
+		ChartURL:   entry.RepoIndex.ChartURL,
+		IndexLock:  sync.RWMutex{},
+		OutputJSON: server.JSONIndex,
 	}
 
 	for _, object := range diff.Removed {
@@ -439,23 +443,28 @@ func (server *MultiTenantServer) newRepositoryIndex(log cm_logger.LoggingFn, rep
 	}
 
 	if !server.UseStatefiles {
-		return cm_repo.NewIndex(chartURL, repo, serverInfo)
+		return cm_repo.NewIndex(chartURL, repo, serverInfo, server.JSONIndex)
 	}
 
 	objectPath := pathutil.Join(repo, cm_repo.StatefileFilename)
 	object, err := server.StorageBackend.GetObject(objectPath)
 	if err != nil {
-		return cm_repo.NewIndex(chartURL, repo, serverInfo)
+		return cm_repo.NewIndex(chartURL, repo, serverInfo, server.JSONIndex)
 	}
 
 	indexFile := &cm_repo.IndexFile{}
-	err = yaml.Unmarshal(object.Content, indexFile)
+	if json.Valid(object.Content) {
+		err = json.Unmarshal(object.Content, indexFile)
+	} else {
+		err = yaml.Unmarshal(object.Content, indexFile)
+	}
+
 	if err != nil {
 		log(cm_logger.WarnLevel, "index-cache.yaml found but could not be parsed",
 			"repo", repo,
 			"error", err.Error(),
 		)
-		return cm_repo.NewIndex(chartURL, repo, serverInfo)
+		return cm_repo.NewIndex(chartURL, repo, serverInfo, server.JSONIndex)
 	}
 
 	log(cm_logger.DebugLevel, "index-cache.yaml loaded",
@@ -463,11 +472,12 @@ func (server *MultiTenantServer) newRepositoryIndex(log cm_logger.LoggingFn, rep
 	)
 
 	return &cm_repo.Index{
-		IndexFile: indexFile,
-		RepoName:  repo,
-		Raw:       object.Content,
-		ChartURL:  chartURL,
-		IndexLock: sync.RWMutex{},
+		IndexFile:  indexFile,
+		RepoName:   repo,
+		Raw:        object.Content,
+		ChartURL:   chartURL,
+		IndexLock:  sync.RWMutex{},
+		OutputJSON: server.JSONIndex,
 	}
 }
 
@@ -477,10 +487,11 @@ func (server *MultiTenantServer) initCacheTimer() {
 		// (in case the files on the disk are manually manipulated)
 		go func() {
 			t := time.NewTicker(server.CacheInterval)
-			for _ = range t.C {
+			for range t.C {
 				server.rebuildIndex()
 			}
 		}()
+
 	}
 }
 
@@ -496,7 +507,6 @@ func (server *MultiTenantServer) emitEvent(c *gin.Context, repo string, operatio
 func (server *MultiTenantServer) startEventListener() {
 	server.Router.Logger.Debug("Starting internal event listener")
 	for {
-
 		e := <-server.EventChan
 		log := server.Logger.ContextLoggingFn(e.Context)
 
@@ -565,11 +575,13 @@ func (server *MultiTenantServer) startEventListener() {
 }
 
 func (server *MultiTenantServer) rebuildIndex() {
+	server.TenantCacheKeyLock.Lock()
+	defer server.TenantCacheKeyLock.Unlock()
 	if len(server.Tenants) == 0 {
 		return
 	}
 	server.Logger.Info("Rebuilding index for all tenants in cache")
-	for repo, _ := range server.Tenants {
+	for repo := range server.Tenants {
 		go server.rebuildIndexForTenant(repo)
 	}
 }
@@ -598,9 +610,7 @@ func (server *MultiTenantServer) refreshCacheEntry(log cm_logger.LoggingFn, repo
 		)
 		return
 	}
-	entry.RepoLock.Lock()
-	defer entry.RepoLock.Unlock()
-	objects := server.getRepoObjectSlice(entry)
+	objects := server.getRepoObjectSliceWithLock(entry)
 	diff := cm_storage.GetObjectSliceDiff(objects, fo.objects, server.TimestampTolerance)
 
 	// return fast if no changes
@@ -614,6 +624,9 @@ func (server *MultiTenantServer) refreshCacheEntry(log cm_logger.LoggingFn, repo
 	log(cm_logger.DebugLevel, "Change detected between cache and storage",
 		"repo", repo,
 	)
+
+	entry.RepoLock.Lock()
+	defer entry.RepoLock.Unlock()
 
 	ir := <-server.regenerateRepositoryIndex(log, entry, diff)
 	if ir.err != nil {

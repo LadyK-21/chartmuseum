@@ -138,6 +138,15 @@ var configVars = map[string]configVar{
 			EnvVar: "DISABLE_STATEFILES",
 		},
 	},
+	"json-index": {
+		Type:    boolType,
+		Default: false,
+		CLIFlag: cli.BoolFlag{
+			Name:   "json-index",
+			Usage:  "generates an index in JSON format, improves parsing performance for large index files",
+			EnvVar: "JSON_INDEX",
+		},
+	},
 	"allowoverwrite": {
 		Type:    boolType,
 		Default: false,
@@ -353,6 +362,15 @@ var configVars = map[string]configVar{
 			Name:   "storage-amazon-sse",
 			Usage:  "server side encryption algorithm",
 			EnvVar: "STORAGE_AMAZON_SSE",
+		},
+	},
+	"storage.amazon.forcepathstyle": {
+		Type:    boolType,
+		Default: true,
+		CLIFlag: cli.StringFlag{
+			Name:   "storage-amazon-force-path-style",
+			Usage:  "whether to force path style for amazon storage backend",
+			EnvVar: "STORAGE_AMAZON_FORCE_PATH_STYLE",
 		},
 	},
 	"storage.google.bucket": {
@@ -607,34 +625,6 @@ var configVars = map[string]configVar{
 			EnvVar: "STORAGE_TENCENT_ENDPOINT",
 		},
 	},
-	"storage.netease.prefix": {
-		Type:    stringType,
-		Default: "",
-		CLIFlag: cli.StringFlag{
-			Name:   "storage-netease-prefix",
-			Usage:  "prefix to store charts for --storage-netease-cloud-bucket",
-			EnvVar: "STORAGE_NETEASE_PREFIX",
-		},
-	},
-	"storage.netease.bucket": {
-		Type:    stringType,
-		Default: "",
-		CLIFlag: cli.StringFlag{
-			Name:   "storage-netease-bucket",
-			Usage:  "NOS bucket to store charts for Netease Cloud storage backend",
-			EnvVar: "STORAGE_NETEASE_BUCKET",
-		},
-	},
-	"storage.netease.endpoint": {
-		Type:    stringType,
-		Default: "",
-		CLIFlag: cli.StringFlag{
-			Name:   "storage-netease-endpoint",
-			Usage:  "NOS endpoint",
-			EnvVar: "STORAGE_NETEASE_ENDPOINT",
-		},
-	},
-
 	"chartpostformfieldname": {
 		Type:    stringType,
 		Default: "chart",
@@ -774,7 +764,7 @@ var configVars = map[string]configVar{
 	},
 	"cacheinterval": {
 		Type:    durationType,
-		Default: time.Duration(0),
+		Default: 5 * time.Minute,
 		CLIFlag: cli.DurationFlag{
 			Name:   "cache-interval",
 			Usage:  "set the interval of delta updating the cache",
@@ -816,6 +806,14 @@ var configVars = map[string]configVar{
 			Usage: "the artifact hub repositoryID used to populate a artifacthub-repo.yml file. " +
 				"This can be a single repository ID for depth=0 servers or a key value pair for depth=N servers (i.e org1/repo1=foo).",
 			EnvVar: "ARTIFACT_HUB_REPO_ID",
+		},
+	},
+	"always-regenerate-chart-index": {
+		Type: boolType,
+		CLIFlag: cli.BoolFlag{
+			Name:   "always-regenerate-chart-index",
+			Usage:  "always regenerate the chart index and ignore the chart cache (this will result in decreased performance and an increase in resource consumption)",
+			EnvVar: "ALWAYS_REGENERATE_CHART_INDEX",
 		},
 	},
 }

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/chartmuseum/storage"
+
 	cm_logger "helm.sh/chartmuseum/pkg/chartmuseum/logger"
 
 	"github.com/stretchr/testify/suite"
@@ -52,8 +53,9 @@ func (suite *ServerTestSuite) TestNewServer() {
 	})
 	suite.Nil(err, "no error creating logger")
 	serverOptions := ServerOptions{
-		StorageBackend: suite.Backend,
-		Logger:         log,
+		StorageBackend:        suite.Backend,
+		Logger:                log,
+		AlwaysRegenerateIndex: true,
 	}
 
 	multiTenantServer, err := NewServer(serverOptions)

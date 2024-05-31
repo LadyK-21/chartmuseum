@@ -17,12 +17,13 @@ limitations under the License.
 package repo
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/chartmuseum/storage"
 	"github.com/stretchr/testify/suite"
+
 	"helm.sh/helm/v3/pkg/chart"
 	helm_repo "helm.sh/helm/v3/pkg/repo"
 )
@@ -34,7 +35,7 @@ type ChartTestSuite struct {
 
 func (suite *ChartTestSuite) SetupSuite() {
 	tarballPath := "../../testdata/charts/mychart/mychart-0.1.0.tgz"
-	content, err := ioutil.ReadFile(tarballPath)
+	content, err := os.ReadFile(tarballPath)
 	suite.Nil(err, "no error reading test tarball")
 	suite.TarballContent = content
 }

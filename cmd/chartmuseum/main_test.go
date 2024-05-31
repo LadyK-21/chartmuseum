@@ -55,7 +55,7 @@ func (suite *MainTestSuite) TearDownSuite() {
 func (suite *MainTestSuite) TestMain() {
 	os.Args = []string{"chartmuseum", "--config", "blahblahblah.yaml"}
 	suite.Panics(main, "bad config")
-	suite.Equal("config file \"blahblahblah.yaml\" does not exist", suite.LastCrashMessage, "crashes with bad config")
+	suite.Equal("config file not found: blahblahblah.yaml", suite.LastCrashMessage, "crashes with bad config")
 
 	os.Args = []string{"chartmuseum"}
 	suite.Panics(main, "no storage")
@@ -100,10 +100,6 @@ func (suite *MainTestSuite) TestMain() {
 	os.Args = []string{"chartmuseum", "--storage", "baidu", "--storage-baidu-bucket", "x", "--storage-baidu-endpoint", "bj.bcebos.com"}
 	suite.Panics(main, "baidu storage")
 	suite.Equal("graceful crash", suite.LastCrashMessage, "no error with baidu backend")
-
-	os.Args = []string{"chartmuseum", "--storage", "netease", "--storage-netease-bucket", "x", "--storage-netease-endpoint", "nos-eastchina1.126.net"}
-	suite.Panics(main, "netease storage")
-	suite.Equal("graceful crash", suite.LastCrashMessage, "no error with netease backend")
 
 	// Redis cache
 	os.Args = []string{"chartmuseum", "--storage", "local", "--storage-local-rootdir", "../../.chartstorage", "--cache", "redis", "--cache-redis-addr", suite.RedisMock.Addr()}

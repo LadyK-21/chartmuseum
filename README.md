@@ -6,7 +6,7 @@
 
 <p align="center"><img align="center" src="logo2.png"></p><br/>
 
-*ChartMuseum* is an open-source **[Helm Chart Repository](https://helm.sh/docs/topics/chart_repository/)** server written in Go (Golang), with support for cloud storage backends, including [Google Cloud Storage](https://cloud.google.com/storage/), [Amazon S3](https://aws.amazon.com/s3/), [Microsoft Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/), [Alibaba Cloud OSS Storage](https://www.alibabacloud.com/product/oss), [Openstack Object Storage](https://developer.openstack.org/api-ref/object-store/), [Oracle Cloud Infrastructure Object Storage](https://cloud.oracle.com/storage), [Baidu Cloud BOS Storage](https://cloud.baidu.com/product/bos.html), [Tencent Cloud Object Storage](https://intl.cloud.tencent.com/product/cos), [Netease Cloud NOS Storage](https://www.163yun.com/product/nos), [DigitalOcean Spaces](https://www.digitalocean.com/products/spaces/), [Minio](https://min.io/), and [etcd](https://etcd.io/).
+*ChartMuseum* is an open-source **[Helm Chart Repository](https://helm.sh/docs/topics/chart_repository/)** server written in Go (Golang), with support for cloud storage backends, including [Google Cloud Storage](https://cloud.google.com/storage/), [Amazon S3](https://aws.amazon.com/s3/), [Microsoft Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/), [Alibaba Cloud OSS Storage](https://www.alibabacloud.com/product/oss), [Openstack Object Storage](https://developer.openstack.org/api-ref/object-store/), [Oracle Cloud Infrastructure Object Storage](https://cloud.oracle.com/storage), [Baidu Cloud BOS Storage](https://cloud.baidu.com/product/bos.html), [Tencent Cloud Object Storage](https://intl.cloud.tencent.com/product/cos), [DigitalOcean Spaces](https://www.digitalocean.com/products/spaces/), [Minio](https://min.io/), and [etcd](https://etcd.io/).
 
 Works as a valid Helm Chart Repository, and also provides an API for uploading charts.
 
@@ -95,14 +95,8 @@ helm install chartmuseum/mychart --generate-name
 ## How to Run
 ### CLI
 #### Installation
-Install binary using [GoFish](https://gofi.sh/):
-```
-gofish install chartmuseum
-==> Installing chartmuseum...
-🐠  chartmuseum 0.15.0: installed in 95.431145ms
-```
 
-or you can use the installer script:
+You can use the installer script:
 ```
 curl https://raw.githubusercontent.com/helm/chartmuseum/main/scripts/get-chartmuseum | bash
 ```
@@ -193,6 +187,20 @@ You need at least the following permissions inside your IAM Policy
 
 In order to work with AWS service accounts you may need to set `AWS_SDK_LOAD_CONFIG=1` in your environment.
 For more context, please see [here](https://github.com/helm/chartmuseum/issues/280#issuecomment-592292527).
+
+If you are using S3-Compatible storage, provider of S3 storage has [disabled path-style and force virtual hosted-style](https://aws.amazon.com/cn/blogs/aws/amazon-s3-path-deprecation-plan-the-rest-of-the-story/), you can use specify `storage-amazon-force-path-style` options as following example:
+```
+export AWS_ACCESS_KEY_ID=""
+export AWS_SECRET_ACCESS_KEY=""
+chartmuseum --debug --port=8080 \
+  --storage="amazon" \
+  --storage-amazon-bucket="my-s3-bucket" \
+  --storage-amazon-prefix="" \
+  --storage-amazon-region="us-east-1" \
+  --storage-amazon-endpoint="my-s3-compatible-service-endpoint"
+  --storage-amazon-force-path-style=false
+```
+
 
 For DigitalOcean, set the credentials using environment variable and pass the `endpoint`.
 Note below, that the region `us-east-1` needs to be set, since that is how the DigitalOcean cli implementation functions. The actual region of your spaces location is defined by the endpoint. Below we are using Frankfurt as an example.
@@ -342,22 +350,6 @@ chartmuseum --debug --port=8080 \
   --storage-tencent-endpoint="cos.ap-beijing.myqcloud.com"
 ```
 
-#### Using with Netease Cloud NOS Storage
-
-Make sure your environment is properly setup to access `my-nos-bucket`.
-
-To do so, you must set the following env vars:
-- `NETEASE_CLOUD_ACCESS_KEY_ID`
-- `NETEASE_CLOUD_ACCESS_KEY_SECRET`
-
-```bash
-chartmuseum --debug --port=8080 \
-  --storage="netease" \
-  --storage-netease-bucket="my-nos-bucket" \
-  --storage-netease-prefix="" \
-  --storage-netease-endpoint="nos-eastchina1.126.net"
-```
-
 #### Using with etcd
 
 To use etcd as backend you need the CA certificate and the signed key pair.
@@ -480,7 +472,7 @@ docker run --rm -it \
   -e STORAGE=local \
   -e STORAGE_LOCAL_ROOTDIR=/charts \
   -v $(pwd)/charts:/charts \
-  ghcr.io/helm/chartmuseum:v0.15.0
+  ghcr.io/helm/chartmuseum:v0.16.2
 ```
 
 Example usage (S3):
@@ -493,7 +485,7 @@ docker run --rm -it \
   -e STORAGE_AMAZON_PREFIX="" \
   -e STORAGE_AMAZON_REGION="us-east-1" \
   -v ~/.aws:/home/chartmuseum/.aws:ro \
-  ghcr.io/helm/chartmuseum:v0.15.0
+  ghcr.io/helm/chartmuseum:v0.16.2
 ```
 
 ### Helm Chart

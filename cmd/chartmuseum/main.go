@@ -118,6 +118,8 @@ func cliHandler(c *cli.Context) {
 		PerChartLimit:          conf.GetInt("per-chart-limit"),
 		WebTemplatePath:        conf.GetString("web-template-path"),
 		ArtifactHubRepoID:      conf.GetStringMapString("artifact-hub-repo-id"),
+		AlwaysRegenerateIndex:  conf.GetBool("always-regenerate-chart-index"),
+		JSONIndex:              conf.GetBool("json-index"),
 	}
 
 	server, err := newServer(options)
@@ -155,8 +157,6 @@ func backendFromConfig(conf *config.Config) storage.Backend {
 		backend = etcdBackendFromConfig(conf)
 	case "tencent":
 		backend = tencentBackendFromConfig(conf)
-	case "netease":
-		backend = neteaseBackendFromConfig(conf)
 	default:
 		crash("Unsupported storage backend: ", storageFlag)
 	}
@@ -177,12 +177,16 @@ func amazonBackendFromConfig(conf *config.Config) storage.Backend {
 		conf.Set("storage.amazon.region", "us-east-1")
 	}
 	crashIfConfigMissingVars(conf, []string{"storage.amazon.bucket", "storage.amazon.region"})
-	return storage.NewAmazonS3Backend(
+	forcePathStyle := conf.GetBool("storage.amazon.forcepathstyle")
+	return storage.NewAmazonS3BackendWithOptions(
 		conf.GetString("storage.amazon.bucket"),
 		conf.GetString("storage.amazon.prefix"),
 		conf.GetString("storage.amazon.region"),
 		conf.GetString("storage.amazon.endpoint"),
 		conf.GetString("storage.amazon.sse"),
+		&storage.AmazonS3Options{
+			S3ForcePathStyle: &forcePathStyle,
+		},
 	)
 }
 
@@ -275,15 +279,6 @@ func tencentBackendFromConfig(conf *config.Config) storage.Backend {
 		conf.GetString("storage.tencent.bucket"),
 		conf.GetString("storage.tencent.prefix"),
 		conf.GetString("storage.tencent.endpoint"),
-	)
-}
-
-func neteaseBackendFromConfig(conf *config.Config) storage.Backend {
-	crashIfConfigMissingVars(conf, []string{"storage.netease.bucket"})
-	return storage.NewNeteaseNOSBackend(
-		conf.GetString("storage.netease.bucket"),
-		conf.GetString("storage.netease.prefix"),
-		conf.GetString("storage.netease.endpoint"),
 	)
 }
 
